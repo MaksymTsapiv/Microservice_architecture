@@ -15,56 +15,79 @@
 > </>
 
 ### Usage
+> First
 
-> First run all 3 microservices (use 3 separate terminals):
+To make this work you should first need to download `hazelcast` and using 
+
+    ./hazelcast-5.2.2/bin/hz start -c=cluster-config.yaml
+
+ you can run cluster locally. Start `hazelcast` 3 times to activate all 3 nodes like this:
+
+![](imgs/hazelcast_3_nodes.png)
+
+> Then run all 5 microservices:
+
+You can do this either using `run_services.sh` or using 5 separate terminals 
 
 ```
- $ python facade-service/main.py
+ $ chmod -x ./run_services.sh
 
- $ python logging-service/main.py
+ $ ./run_services.sh
 
+    # OR
+
+ $ python facade-service/main.py 
+ $ python logging-service/main.py 1 
+ $ python logging-service/main.py 2 
+ $ python logging-service/main.py 3 
  $ python messages-service/main.py
 ```
 
+You might also want to use something like
+
+    $ killall python
+
+if you are using `run_services.sh` if you want to stop services.
+
 > Now you can make POST/GET requests using `curl` for example:
 
+You can use `requests.sh` to make 10 `POST` and 1 `GET` request.
 ```
+ $ chmod -x ./requests.sh
+
+ $ ./requests.sh
+
+    # OR
+ 
  $ curl -X POST http://127.0.0.1:8080/facade-service -H "Content-Type: text/html" -d 'msg1'
-
- $ curl -X POST http://127.0.0.1:8080/facade-service -H "Content-Type: text/html" -d 'msg2'
-
+ 
+ # ---|| --- ...
+ 
  $ curl -X GET http://127.0.0.1:8080/facade-service
 
 ```
 
 ### Output
 
-> POST requests do not give output. GET requests return messages you posted and a static message from `message-service` (`"Works as intended"`). 
+On the 2 pictures below you can see before and after the use of `requests.sh`.  
 
-Output example after a GET request:
+![](imgs/5t_service_setup.png)
+
+![](imgs/5t_output.png)
+
+As you can see `logging-service 2` recieved the `msg2`, `msg3` and `msg6`;
+`logging-service 3` recieved the `msg1` and `msg8`, others went to the `logging-service 1`.
+
+Output:
 ```
-[["msg1","msg2","msg3","msg4"],"Works as intended"]
-```
+[["msg8","msg4","msg10","msg2","msg5","msg9","msg6","msg1","msg7","msg3"],"Works as intended"]
+``` 
 
-You can also see how `logging-service` is storing your messages with its uuids if you look inside the console output where you started logging service using:
+(static message from `message-service` (`"Works as intended"`))
 
-    $ python logging-service/main.py
+> As you can see from the picture below, if we were to turn off one of the `logging-services` (here `logging-service 3` is off) the problem would be if we randomly choose to make a request to the service that is off, we will recieve an exception, but if you make a request to the active service, no problem will occur, no data loss either.  
 
-This is an example:
+> Both cases on the screenshot (first `GET` request failed, second returned all the data)
 
-```
-INFO:     Started server process [35546]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8081 (Press CTRL+C to quit)
-{'25f4c8eb-5395-48e2-b6d1-8a60bb70e398': 'msg1'}
-INFO:     127.0.0.1:45952 - "POST /logging-service HTTP/1.1" 200 OK
-{'25f4c8eb-5395-48e2-b6d1-8a60bb70e398': 'msg1', 'c67be0f9-d65b-4433-9153-cad02f5edfca': 'msg2'}
-INFO:     127.0.0.1:35966 - "POST /logging-service HTTP/1.1" 200 OK
-{'25f4c8eb-5395-48e2-b6d1-8a60bb70e398': 'msg1', 'c67be0f9-d65b-4433-9153-cad02f5edfca': 'msg2', '4766d0a9-ca2c-4a2a-9c99-8ad206542bed': 'msg3'}
-INFO:     127.0.0.1:35112 - "POST /logging-service HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51860 - "GET /logging-service HTTP/1.1" 200 OK
-{'25f4c8eb-5395-48e2-b6d1-8a60bb70e398': 'msg1', 'c67be0f9-d65b-4433-9153-cad02f5edfca': 'msg2', '4766d0a9-ca2c-4a2a-9c99-8ad206542bed': 'msg3', 'f7e9b409-ecae-4667-b3bf-fc46200336e2': 'msg4'}
-INFO:     127.0.0.1:43832 - "POST /logging-service HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43836 - "GET /logging-service HTTP/1.1" 200 OK
-```
+![](imgs/log_off.png)
+
