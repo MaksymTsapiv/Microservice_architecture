@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from fastapi import FastAPI
 from starlette.status import HTTP_200_OK
 
@@ -5,6 +6,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 import hazelcast
+
+from consul import Consul
 
 import uvicorn
 import os
@@ -25,19 +28,22 @@ with open(CONFIG_FILE, 'r') as file:
 
 app = FastAPI()
 
-client = hazelcast.HazelcastClient(
-    cluster_name="dev",
-    cluster_members=[
-        "127.0.0.1:5701",
-        "127.0.0.1:5702",
-        "127.0.0.1:5703",
-    ],
+parser = ArgumentParser()
+parser.add_argument('--port', type=int, required=True)
+args = parser.parse_args()
+name = f'logging{args.port}'
 
-    lifecycle_listeners=[
+consul = Consul()
+consul.agent.service.register(name=name, port=args.port)
+
+hz = hazelcast.HazelcastClient(cluster_members=[f"localhost:{hport}" for
+                                                hport in consul.kv.get('map_ports')[1]['Value'].decode("utf-8").split()],
+                               cluster_name="dev",
+                               lifecycle_listeners=[
         lambda state: print("Lifecycle event >>>", state),
-    ]
-)
-database = client.get_map("distributed-map").blocking()
+    ])
+
+database = hz.get_map("distributed-map").blocking()
 
 @app.post("/logging-service", response_class=Response)
 async def handle_message(request: Message) -> Response:
@@ -56,4 +62,4 @@ async def get():
 
 
 if __name__ == "__main__":
-    uvicorn.run("service:app", port=int(f'808{sys.argv[1]}'), log_level="info") 
+    uvicorn.run("service:app", port=args.port, log_level="info") 

@@ -25,9 +25,18 @@ To make this work you should first need to download `hazelcast` and using
 
 ![](imgs/hazelcast.png)
 
+> Then you have to start the `consul`:
+
+```
+ $ chmod -x ./scripts/start_consul.sh
+
+ $ ./scripts/start_consul.sh
+
+```
+
 > Then run all 6 microservices:
 
-You can do this either using `run_services.sh` or using 5 separate terminals 
+You can do this either using `run_services.sh` or using 6 separate terminals to see the output of each individual service
 
 ```
  $ chmod -x ./scripts/run_services.sh
@@ -35,13 +44,13 @@ You can do this either using `run_services.sh` or using 5 separate terminals
  $ ./scripts/run_services.sh
 
     # OR
-
- $ python facade-service/main.py 
- $ python logging-service/main.py 1 
- $ python logging-service/main.py 2 
- $ python logging-service/main.py 3 
- $ python messages-service/main.py 4
- $ python messages-service/main.py 5
+ 
+ $ python facade-service/service.py --port 8080 
+ $ python logging-service/service.py --port 8081 
+ $ python logging-service/service.py --port 8082 
+ $ python logging-service/service.py --port 8083 
+ $ python messages-service/service.py --port 8084
+ $ python messages-service/service.py --port 8085
 ```
 
 You might also want to use something like
@@ -74,7 +83,7 @@ On the 2 pictures below you can see before and after the use of `requests.sh`.
 
 ![](imgs/run_services.png)
 
-![](imgs/requests.png)
+![](imgs/requests_consul.png)
 
 From the logs you can see how messsages are going to the message queue and to the logging service.
 

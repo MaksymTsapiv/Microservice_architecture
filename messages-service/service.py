@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from datetime import datetime
 import sys
 import threading
@@ -6,6 +7,8 @@ from starlette.status import HTTP_200_OK
 
 from starlette.requests import Request
 from starlette.responses import Response
+
+from consul import Consul
 
 import hazelcast
 
@@ -20,10 +23,24 @@ with open(CONFIG_FILE, 'r') as file:
 
 app = FastAPI()
 
+parser = ArgumentParser()
+parser.add_argument('--port', type=int, required=True)
+args = parser.parse_args()
+name = f'messages{args.port}'
+
+consul = Consul()
+consul.agent.service.register(name=name, port=args.port)
+
+hz = hazelcast.HazelcastClient(cluster_members=[f"localhost:{hport}" for
+                                                hport in consul.kv.get('mq_ports')[1]['Value'].decode("utf-8").split()],
+                               cluster_name="dev")
+
+queue = hz.get_queue(consul.kv.get('mq_name')[1]['Value'].decode("utf-8")).blocking()
+
+
 hz = hazelcast.HazelcastClient(cluster_members=["localhost:5701"], cluster_name="dev")
 queue = hz.get_queue("mq").blocking()
 filename = os.path.join("./data/", f"{datetime.now().isoformat()}.txt")
-
 
 @app.get("/messages-service")
 async def get():    
@@ -43,5 +60,5 @@ async def app_startup():
 
 
 if __name__ == "__main__":
-    uvicorn.run("service:app", port=int(f'808{sys.argv[1]}'), log_level="info")
+    uvicorn.run("service:app", port=args.port, log_level="info")
 

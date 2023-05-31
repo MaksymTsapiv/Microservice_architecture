@@ -7,7 +7,10 @@ from starlette.testclient import TestClient
 
 import hazelcast
 
+from consul import Consul
+
 import uvicorn
+from argparse import ArgumentParser
 from uuid import uuid4
 import httpx
 import json
@@ -19,19 +22,27 @@ CONFIG_FILE = f"{os.path.dirname(__file__)}/../config.json"
 with open(CONFIG_FILE, 'r') as file:
     config = json.load(file)
 
+parser = ArgumentParser()
+parser.add_argument('--port', type=int, required=True)
+args = parser.parse_args()
+name = f'facade{args.port}'
 
-hz = hazelcast.HazelcastClient(
-            cluster_members=[
-                "localhost:5701",
-            ],
-            cluster_name="dev",
-        )
-queue = hz.get_queue("mq")
+consul = Consul()
+consul.agent.service.register(name=name, port=args.port)
+
+hz = hazelcast.HazelcastClient(cluster_members=[f"localhost:{hport}" for
+                                                hport in consul.kv.get('mq_ports')[1]['Value'].decode("utf-8").split()],
+                               cluster_name="dev")
+
+queue = hz.get_queue(consul.kv.get('mq_name')[1]['Value'].decode("utf-8")).blocking()
 
 app = FastAPI()
 
+consul = Consul()
+consul.agent.service.register(name="facade-service", port=8080)
+
 @app.post("/facade-service", response_class=Response)
-async def handle_message(request: Request) -> Response:
+async def post_message(request: Request) -> Response:
     logging_url = config['logging-service'][random.randint(0, 2)]
 
     bmsg = await request.body()
@@ -46,7 +57,7 @@ async def handle_message(request: Request) -> Response:
 
 
 @app.get("/facade-service")
-def get():
+def get_message():
     logging_url = config['logging-service'][random.randint(0, 2)]
     messages_url = config['messages-service'][random.randint(0, 1)]
     
@@ -57,4 +68,4 @@ def get():
 
 
 if __name__ == "__main__":
-    uvicorn.run("service:app", port=8080, log_level="info")
+    uvicorn.run("service:app", port=args.port, log_level="info")
