@@ -27,4 +27,3 @@ hazelcast:
   queue:
     queue:
       max-size: 100
-  

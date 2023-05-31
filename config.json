@@ -5,5 +5,8 @@
         "http://127.0.0.1:8082/logging-service",
         "http://127.0.0.1:8083/logging-service"
     ],
-    "messages-service": "http://127.0.0.1:8084/messages-service"
+    "messages-service": [
+        "http://127.0.0.1:8084/messages-service",
+        "http://127.0.0.1:8085/messages-service"
+    ]
 }

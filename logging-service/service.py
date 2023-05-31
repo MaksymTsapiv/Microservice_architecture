@@ -44,8 +44,8 @@ async def handle_message(request: Message) -> Response:
 
     database.set(request.uuid, request.msg)
     
-    print(database.get(request.uuid))
-    print("Map size:", database.size())
+    print("INFO:\tLogging msg: ", database.get(request.uuid))
+    print("INFO:\tMap size:", database.size())
 
     return Response(status_code=HTTP_200_OK)
 
@@ -56,4 +56,4 @@ async def get():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=int(f'808{sys.argv[1]}'), log_level="info") 
+    uvicorn.run("service:app", port=int(f'808{sys.argv[1]}'), log_level="info") 

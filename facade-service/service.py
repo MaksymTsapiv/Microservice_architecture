@@ -5,6 +5,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.testclient import TestClient
 
+import hazelcast
+
 import uvicorn
 from uuid import uuid4
 import httpx
@@ -17,7 +19,14 @@ CONFIG_FILE = f"{os.path.dirname(__file__)}/../config.json"
 with open(CONFIG_FILE, 'r') as file:
     config = json.load(file)
 
-messages_url = config['messages-service']
+
+hz = hazelcast.HazelcastClient(
+            cluster_members=[
+                "localhost:5701",
+            ],
+            cluster_name="dev",
+        )
+queue = hz.get_queue("mq")
 
 app = FastAPI()
 
@@ -31,12 +40,15 @@ async def handle_message(request: Request) -> Response:
     uuid = str(uuid4())
     httpx.post(logging_url, json={"uuid": uuid, "msg": msg})
 
+    queue.put(msg)
+
     return Response(status_code=HTTP_200_OK)
 
 
 @app.get("/facade-service")
 def get():
     logging_url = config['logging-service'][random.randint(0, 2)]
+    messages_url = config['messages-service'][random.randint(0, 1)]
     
     log_response = httpx.get(logging_url)
     msg_response = httpx.get(messages_url)
@@ -45,4 +57,4 @@ def get():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=8080, log_level="info")
+    uvicorn.run("service:app", port=8080, log_level="info")
